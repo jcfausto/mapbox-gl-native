@@ -622,11 +622,15 @@ std::vector<Feature> Renderer::Impl::queryRenderedFeatures(const ScreenLineStrin
         }
     }
 
+    return queryRenderedFeatures(geometry, options, layers);
+}
+    
+std::vector<Feature> Renderer::Impl::queryRenderedFeatures(const ScreenLineString& geometry, const RenderedQueryOptions& options, const std::vector<const RenderLayer*>& layers) const {
     std::unordered_set<std::string> sourceIDs;
     for (const RenderLayer* layer : layers) {
         sourceIDs.emplace(layer->baseImpl->source);
     }
-
+    
     std::unordered_map<std::string, std::vector<Feature>> resultsByLayer;
     for (const auto& sourceID : sourceIDs) {
         if (RenderSource* renderSource = getRenderSource(sourceID)) {
@@ -634,13 +638,13 @@ std::vector<Feature> Renderer::Impl::queryRenderedFeatures(const ScreenLineStrin
             std::move(sourceResults.begin(), sourceResults.end(), std::inserter(resultsByLayer, resultsByLayer.begin()));
         }
     }
-
+    
     std::vector<Feature> result;
-
+    
     if (resultsByLayer.empty()) {
         return result;
     }
-
+    
     // Combine all results based on the style layer order.
     for (const auto& layerImpl : *layerImpls) {
         const RenderLayer* layer = getRenderLayer(layerImpl->id);
@@ -652,8 +656,23 @@ std::vector<Feature> Renderer::Impl::queryRenderedFeatures(const ScreenLineStrin
             std::move(it->second.begin(), it->second.end(), std::back_inserter(result));
         }
     }
-
+    
     return result;
+}
+    
+std::vector<Feature> Renderer::Impl::queryShapeAnnotations(const ScreenLineString& geometry) const {
+    std::vector<const RenderLayer*> shapeAnnotationLayers;
+    RenderedQueryOptions options;
+    for (const auto& layerImpl : *layerImpls) {
+        if (std::mismatch(layerImpl->id.begin(), layerImpl->id.end(),
+                          AnnotationManager::ShapeLayerID.begin(), AnnotationManager::ShapeLayerID.end()).second == AnnotationManager::ShapeLayerID.end()) {
+            if (const RenderLayer* layer = getRenderLayer(layerImpl->id)) {
+                shapeAnnotationLayers.emplace_back(layer);
+            }
+        }
+    }
+    
+    return queryRenderedFeatures(geometry, options, shapeAnnotationLayers);
 }
 
 std::vector<Feature> Renderer::Impl::querySourceFeatures(const std::string& sourceID, const SourceQueryOptions& options) const {
