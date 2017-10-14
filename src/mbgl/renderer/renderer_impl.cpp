@@ -370,6 +370,9 @@ void Renderer::Impl::render(const UpdateParameters& updateParameters) {
             if (bucket) {
                 sortedTilesForInsertion.emplace_back(tile);
                 tile.used = true;
+                if (!symbolLayer || parameters.mapMode == MapMode::Still) {
+                    tile.needsClipping = true;
+                }
             }
         }
         layer->setRenderTiles(std::move(sortedTilesForInsertion));
